@@ -10,17 +10,37 @@
         h2 { color: #0056b3; margin-top: 0; }
         .form-group { margin-bottom: 15px; position: relative; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="date"], select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        input[type="text"], input[type="date"] { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .row { display: flex; gap: 10px; }
         .row .form-group { flex: 1; }
         .btn { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
         .btn:hover { background: #0056b3; }
         .btn-green { background: #28a745; width: auto; }
         
+        /* Kahon para sa mga Worker Checkboxes */
+        .workers-box {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 120px;
+            overflow-y: auto;
+            background: #fafafa;
+        }
+        .worker-checkbox-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        .worker-checkbox-item input {
+            margin-right: 8px;
+            transform: scale(1.1);
+        }
+
         /* Mga Kulay para sa Buttons */
         .link-btn { text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; color: white; display: inline-block; border: none; cursor: pointer; font-weight: bold; }
-        .map-btn { background: #ea4335; }       /* Google Maps - Red/Orange */
-        .cal-btn { background: #4285f4; }       /* Google Calendar - Blue */
+        .map-btn { background: #ea4335; }       /* Google Maps */
+        .cal-btn { background: #4285f4; }       /* Google Calendar */
         .edit-btn { background: #007bff; }      /* Edit - Blue */
         .delete-btn { background: #dc3545; }    /* Delete - Red */
         .finished-btn { background: #28a745; }  /* Finished - Green */
@@ -54,12 +74,11 @@
         }
     </style>
 </head>
-<body onload="loadSchedules()">
+<body onload="initApp()">
 
 <div class="container">
     <h2 id="formTitle">📅 Magdagdag ng Schedule</h2>
     
-    <!-- Hidden input para sa Edit Mode -->
     <input type="hidden" id="editIndex" value="-1">
 
     <div class="form-group">
@@ -69,19 +88,17 @@
 
     <div class="form-group">
         <label>Address ng Lokasyon:</label>
-        <input type="text" id="jobAddress" placeholder="Mag-type ng address (Hal. Victoria St, Hamilton)..." onkeyup="searchAddress(this.value)" autocomplete="off">
+        <input type="text" id="jobAddress" placeholder="Mag-type ng address..." onkeyup="searchAddress(this.value)" autocomplete="off">
         <div id="suggestions"></div>
     </div>
 
+    <!-- Multi-Worker Checkboxes -->
     <div class="form-group">
-        <label>Naka-assign na Worker:</label>
-        <div style="display: flex; gap: 10px;">
-            <select id="workerDropdown" style="flex: 1;">
-                <option value="Frank Nesperos">Frank Nesperos</option>
-                <option value="John Doe">John Doe</option>
-            </select>
-            <button type="button" class="btn btn-green" onclick="addNewWorker()">+ Add Worker</button>
+        <label>Pumili ng mga Worker (Pwede marami):</label>
+        <div id="workersContainer" class="workers-box">
+            <!-- Dito kusang papasok ang listahan ng mga tao -->
         </div>
+        <button type="button" class="btn btn-green" style="margin-top: 8px;" onclick="addNewWorkerPrompt()">+ Magdagdag ng Bagong Worker sa Listahan</button>
     </div>
 
     <div class="row">
@@ -106,6 +123,63 @@
 </div>
 
 <script>
+    // Paunang listahan ng mga worker kung wala pang naka-save
+    let defaultWorkers = ["Frank Nesperos", "John Doe", "Worker 3", "Worker 4", "Worker 5", "Worker 6"];
+
+    function initApp() {
+        loadWorkerCheckboxes();
+        loadSchedules();
+    }
+
+    // Load worker checkboxes sa form
+    function loadWorkerCheckboxes(selectedWorkers = []) {
+        let workersList = JSON.parse(localStorage.getItem("systemWorkers")) || defaultWorkers;
+        const container = document.getElementById("workersContainer");
+        container.innerHTML = "";
+
+        workersList.forEach(worker => {
+            const isChecked = selectedWorkers.includes(worker) ? "checked" : "";
+            const div = document.createElement("div");
+            div.className = "worker-checkbox-item";
+            div.innerHTML = `
+                <label style="font-weight: normal; cursor: pointer; display: flex; align-items: center; width: 100%;">
+                    <input type="checkbox" value="${worker}" ${isChecked} class="worker-chk"> ${worker}
+                </label>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // Magdagdag ng bagong worker sa buong listahan
+    function addNewWorkerPrompt() {
+        const pangalan = prompt("Ilagay ang pangalan ng bagong worker:");
+        if (pangalan && pangalan.trim() !== "") {
+            let workersList = JSON.parse(localStorage.getItem("systemWorkers")) || defaultWorkers;
+            const newName = pangalan.trim();
+            
+            if (!workersList.includes(newName)) {
+                workersList.push(newName);
+                localStorage.setItem("systemWorkers", JSON.stringify(workersList));
+                
+                // Kunin ang mga kasalukuyang nakatsek para hindi mawala
+                let currentSelected = getSelectedWorkersFromForm();
+                currentSelected.push(newName);
+                
+                loadWorkerCheckboxes(currentSelected);
+                alert(`Naidagdag na si ${newName} sa master list ng mga worker!`);
+            } else {
+                alert("Nakalista na po ang pangalang iyan.");
+            }
+        }
+    }
+
+    function getSelectedWorkersFromForm() {
+        const checkboxes = document.querySelectorAll(".worker-chk:checked");
+        let selected = [];
+        checkboxes.forEach(chk => selected.push(chk.value));
+        return selected;
+    }
+
     let searchTimeout;
     function searchAddress(query) {
         clearTimeout(searchTimeout);
@@ -144,19 +218,6 @@
         }
     });
 
-    function addNewWorker() {
-        const pangalan = prompt("Ilagay ang pangalan ng bagong worker:");
-        if (pangalan && pangalan.trim() !== "") {
-            const dropdown = document.getElementById("workerDropdown");
-            const newOpt = document.createElement("option");
-            newOpt.value = pangalan.trim();
-            newOpt.textContent = pangalan.trim();
-            dropdown.appendChild(newOpt);
-            dropdown.value = pangalan.trim();
-            alert(`Naidagdag na si ${pangalan} sa listahan!`);
-        }
-    }
-
     function loadSchedules() {
         const savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
         const listContainer = document.getElementById("scheduleList");
@@ -175,35 +236,35 @@
     function saveSchedule() {
         const title = document.getElementById("jobTitle").value;
         const address = document.getElementById("jobAddress").value;
-        const worker = document.getElementById("workerDropdown").value;
+        const workers = getSelectedWorkersFromForm();
         const start = document.getElementById("startDate").value;
         const end = document.getElementById("endDate").value;
-        const editIndex = document.getElementById("editIndex").value;
+        const editIndex = parseInt(document.getElementById("editIndex").value);
 
         if (!title || !address || !start || !end) {
-            alert("Pakipunan po ang lahat ng kailangang detalye!");
+            alert("Pakipunan po ang lahat ng kailangang detalye (Trabaho, Address, at Petsa)!");
+            return;
+        }
+
+        if (workers.length === 0) {
+            alert("Pumili muli kahit isang worker man lang para sa site na ito.");
             return;
         }
 
         let savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
 
-        if (editIndex === "-1") {
-            // Bagong add
-            const newJob = { title, address, worker, start, end, finished: false };
+        if (editIndex === -1) {
+            const newJob = { title, address, workers, start, end, finished: false };
             savedSchedules.unshift(newJob);
             alert("Matagumpay na naidagdag ang schedule!");
         } else {
-            // Update / Edit existing
             savedSchedules[editIndex].title = title;
             savedSchedules[editIndex].address = address;
-            savedSchedules[editIndex].worker = worker;
+            savedSchedules[editIndex].workers = workers;
             savedSchedules[editIndex].start = start;
             savedSchedules[editIndex].end = end;
             
-            // I-reset ang edit mode
-            document.getElementById("editIndex").value = "-1";
-            document.getElementById("formTitle").textContent = "📅 Magdagdag ng Schedule";
-            document.getElementById("saveBtn").textContent = "I-save ang Schedule";
+            clearForm();
             alert("Matagumpay na na-update ang schedule!");
         }
 
@@ -217,20 +278,31 @@
         document.getElementById("jobAddress").value = "";
         document.getElementById("startDate").value = "";
         document.getElementById("endDate").value = "";
+        document.getElementById("editIndex").value = "-1";
+        document.getElementById("formTitle").textContent = "📅 Magdagdag ng Schedule";
+        document.getElementById("saveBtn").textContent = "I-save ang Schedule";
+        loadWorkerCheckboxes([]);
     }
 
     function editSchedule(index) {
         let savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
         const job = savedSchedules[index];
 
+        if (!job) return;
+
         document.getElementById("jobTitle").value = job.title;
         document.getElementById("jobAddress").value = job.address;
-        document.getElementById("workerDropdown").value = job.worker;
+        
+        // I-load ang mga worker at lagyan ng tsek kung sino ang naka-assign sa job na ito
+        // Kung sakaling may lumang data na iisang worker lang, i-handle natin nang maayos
+        let assignedWorkers = job.workers || (job.worker ? [job.worker] : []);
+        loadWorkerCheckboxes(assignedWorkers);
+
         document.getElementById("startDate").value = job.start;
         document.getElementById("endDate").value = job.end;
         
         document.getElementById("editIndex").value = index;
-        document.getElementById("formTitle").textContent = "✏️ I-edit ang Schedule";
+        document.getElementById("formTitle").textContent = "✏️ I-edit ang Schedule (Update Mode)";
         document.getElementById("saveBtn").textContent = "I-update ang Schedule";
         
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -258,13 +330,18 @@
         const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`;
         const startFmt = job.start.replaceAll('-', '');
         const endFmt = job.end.replaceAll('-', '');
-        const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(job.title)}&dates=${startFmt}/${endFmt}&details=${encodeURIComponent('Trabaho kay: ' + job.worker)}&location=${encodeURIComponent(job.address)}`;
+        
+        // Kunin ang listahan ng mga worker para sa calendar details
+        let workersArray = job.workers || (job.worker ? [job.worker] : []);
+        const workersStr = workersArray.join(", ");
+        
+        const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(job.title)}&dates=${startFmt}/${endFmt}&details=${encodeURIComponent('Mga Worker: ' + workersStr)}&location=${encodeURIComponent(job.address)}`;
 
         const card = document.createElement("div");
         card.className = `job-card ${job.finished ? 'is-finished' : ''}`;
         card.innerHTML = `
             <h4 style="margin: 0 0 8px 0; color: #333;">${job.title} ${job.finished ? '✅ (Finished)' : ''}</h4>
-            <p style="margin: 4px 0;"><strong>Worker:</strong> 👤 ${job.worker}</p>
+            <p style="margin: 4px 0;"><strong>Mga Worker:</strong> 👤 ${workersStr}</p>
             <p style="margin: 4px 0;"><strong>Address:</strong> 📍 <a href="${mapUrl}" target="_blank" style="color: #1a73e8; text-decoration: underline;">${job.address}</a></p>
             <p style="margin: 4px 0;"><strong>Petsa:</strong> 📅 ${job.start} hanggang ${job.end}</p>
             <div class="job-actions">
