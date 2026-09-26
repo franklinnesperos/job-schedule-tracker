@@ -8,7 +8,7 @@
         body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h2 { color: #0056b3; margin-top: 0; }
-        .form-group { margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; position: relative; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
         input[type="text"], input[type="date"], select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .row { display: flex; gap: 10px; }
@@ -21,6 +21,31 @@
         .link-btn { text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; color: white; display: inline-block; }
         .map-btn { background: #ea4335; }
         .cal-btn { background: #4285f4; }
+        
+        /* Estilo para sa Address Suggestions Dropdown */
+        #suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 1000;
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .suggestion-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f1f1;
+            font-size: 14px;
+        }
+        .suggestion-item:hover {
+            background: #e9ecef;
+        }
     </style>
 </head>
 <body>
@@ -28,17 +53,20 @@
 <div class="container">
     <h2>📅 Job & Schedule Tracker</h2>
     
-    <!-- Form para sa Schedule -->
+    <!-- Pangalan ng Trabaho -->
     <div class="form-group">
         <label>Pangalan / Uri ng Trabaho:</label>
         <input type="text" id="jobTitle" placeholder="Hal. Installation ng GIB & Plastering">
     </div>
 
+    <!-- Address na may Auto-suggestions -->
     <div class="form-group">
         <label>Address ng Lokasyon:</label>
-        <input type="text" id="jobAddress" placeholder="Hal. 123 Franklin St, Pirongia">
+        <input type="text" id="jobAddress" placeholder="Mag-type ng address (Hal. Victoria St, Hamilton)..." onkeyup="searchAddress(this.value)" autocomplete="off">
+        <div id="suggestions"></div>
     </div>
 
+    <!-- Worker Dropdown -->
     <div class="form-group">
         <label>Naka-assign na Worker:</label>
         <div style="display: flex; gap: 10px;">
@@ -50,6 +78,7 @@
         </div>
     </div>
 
+    <!-- Petsa -->
     <div class="row">
         <div class="form-group">
             <label>Petsa ng Simula:</label>
@@ -72,7 +101,48 @@
 </div>
 
 <script>
-    // 1. Function para mag-add ng bagong worker sa dropdown
+    // 1. Live Address Search (Autocomplete)
+    let searchTimeout;
+    function searchAddress(query) {
+        clearTimeout(searchTimeout);
+        const suggestionsBox = document.getElementById("suggestions");
+
+        if (query.length < 3) {
+            suggestionsBox.innerHTML = "";
+            return;
+        }
+
+        // Maghintay sandali pagkatapos mag-type bago mag-search para hindi bumagal
+        searchTimeout = setTimeout(() => {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    suggestionsBox.innerHTML = "";
+                    data.forEach(place => {
+                        const div = document.createElement("div");
+                        div.className = "suggestion-item";
+                        div.textContent = place.display_name;
+                        div.onclick = () => {
+                            document.getElementById("jobAddress").value = place.display_name;
+                            suggestionsBox.innerHTML = ""; // Itago ang suggestions pagkapili
+                        };
+                        suggestionsBox.appendChild(div);
+                    });
+                })
+                .catch(err => console.error("Error sa pagkuha ng address:", err));
+        }, 300);
+    }
+
+    // Isara ang suggestions kapag nag-click sa labas
+    document.addEventListener("click", function(e) {
+        if (!e.target.closest("#jobAddress")) {
+            document.getElementById("suggestions").innerHTML = "";
+        }
+    });
+
+    // 2. Function para mag-add ng bagong worker
     function addNewWorker() {
         const pangalan = prompt("Ilagay ang pangalan ng bagong worker:");
         if (pangalan && pangalan.trim() !== "") {
@@ -86,7 +156,7 @@
         }
     }
 
-    // 2. Function para i-save at ipakita ang schedule
+    // 3. Function para i-save ang schedule
     function saveSchedule() {
         const title = document.getElementById("jobTitle").value;
         const address = document.getElementById("jobAddress").value;
@@ -99,18 +169,13 @@
             return;
         }
 
-        // Gumawa ng Google Maps URL
         const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
-        // Gumawa ng Google Calendar URL (Format: YYYYMMDD)
         const startFmt = start.replaceAll('-', '');
         const endFmt = end.replaceAll('-', '');
         const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startFmt}/${endFmt}&details=${encodeURIComponent('Trabaho kay: ' + worker)}&location=${encodeURIComponent(address)}`;
 
-        // I-display sa listahan
         const listContainer = document.getElementById("scheduleList");
-        
-        // Alisin ang placeholder kung unang beses mag-add
         if (listContainer.innerHTML.includes("Wala pang naka-save")) {
             listContainer.innerHTML = "";
         }
@@ -130,7 +195,6 @@
 
         listContainer.prepend(card);
 
-        // Linisin ang input fields
         document.getElementById("jobTitle").value = "";
         document.getElementById("jobAddress").value = "";
         alert("Matagumpay na naidagdag ang schedule!");
