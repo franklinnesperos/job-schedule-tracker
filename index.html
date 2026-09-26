@@ -16,13 +16,13 @@
         .btn { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
         .btn:hover { background: #0056b3; }
         .btn-green { background: #28a745; width: auto; }
+        .btn-danger { background: #dc3545; padding: 6px 12px; font-size: 13px; }
         .job-card { background: #f9f9f9; border-left: 5px solid #007bff; padding: 15px; margin-top: 15px; border-radius: 4px; }
-        .job-actions { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .job-actions { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         .link-btn { text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; color: white; display: inline-block; }
         .map-btn { background: #ea4335; }
         .cal-btn { background: #4285f4; }
         
-        /* Estilo para sa Address Suggestions Dropdown */
         #suggestions {
             position: absolute;
             top: 100%;
@@ -48,25 +48,22 @@
         }
     </style>
 </head>
-<body>
+<body onload="loadSchedules()">
 
 <div class="container">
     <h2>📅 Job & Schedule Tracker</h2>
     
-    <!-- Pangalan ng Trabaho -->
     <div class="form-group">
         <label>Pangalan / Uri ng Trabaho:</label>
         <input type="text" id="jobTitle" placeholder="Hal. Installation ng GIB & Plastering">
     </div>
 
-    <!-- Address na may Auto-suggestions -->
     <div class="form-group">
         <label>Address ng Lokasyon:</label>
         <input type="text" id="jobAddress" placeholder="Mag-type ng address (Hal. Victoria St, Hamilton)..." onkeyup="searchAddress(this.value)" autocomplete="off">
         <div id="suggestions"></div>
     </div>
 
-    <!-- Worker Dropdown -->
     <div class="form-group">
         <label>Naka-assign na Worker:</label>
         <div style="display: flex; gap: 10px;">
@@ -78,7 +75,6 @@
         </div>
     </div>
 
-    <!-- Petsa -->
     <div class="row">
         <div class="form-group">
             <label>Petsa ng Simula:</label>
@@ -112,7 +108,6 @@
             return;
         }
 
-        // Maghintay sandali pagkatapos mag-type bago mag-search para hindi bumagal
         searchTimeout = setTimeout(() => {
             const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
 
@@ -126,23 +121,22 @@
                         div.textContent = place.display_name;
                         div.onclick = () => {
                             document.getElementById("jobAddress").value = place.display_name;
-                            suggestionsBox.innerHTML = ""; // Itago ang suggestions pagkapili
+                            suggestionsBox.innerHTML = "";
                         };
                         suggestionsBox.appendChild(div);
                     });
                 })
-                .catch(err => console.error("Error sa pagkuha ng address:", err));
+                .catch(err => console.error("Error:", err));
         }, 300);
     }
 
-    // Isara ang suggestions kapag nag-click sa labas
     document.addEventListener("click", function(e) {
         if (!e.target.closest("#jobAddress")) {
             document.getElementById("suggestions").innerHTML = "";
         }
     });
 
-    // 2. Function para mag-add ng bagong worker
+    // 2. Add Worker
     function addNewWorker() {
         const pangalan = prompt("Ilagay ang pangalan ng bagong worker:");
         if (pangalan && pangalan.trim() !== "") {
@@ -156,7 +150,23 @@
         }
     }
 
-    // 3. Function para i-save ang schedule
+    // 3. Load Schedules from LocalStorage when page opens
+    function loadSchedules() {
+        const savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
+        const listContainer = document.getElementById("scheduleList");
+
+        if (savedSchedules.length === 0) {
+            listContainer.innerHTML = '<p style="color: #777; font-style: italic;">Wala pang naka-save na schedule.</p>';
+            return;
+        }
+
+        listContainer.innerHTML = "";
+        savedSchedules.forEach((job, index) => {
+            renderJobCard(job, index);
+        });
+    }
+
+    // 4. Save Schedule
     function saveSchedule() {
         const title = document.getElementById("jobTitle").value;
         const address = document.getElementById("jobAddress").value;
@@ -169,35 +179,61 @@
             return;
         }
 
-        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+        const newJob = { title, address, worker, start, end };
+        
+        let savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
+        savedSchedules.unshift(newJob); // Ilagay sa unahan
+        localStorage.setItem("jobSchedules", JSON.stringify(savedSchedules));
 
-        const startFmt = start.replaceAll('-', '');
-        const endFmt = end.replaceAll('-', '');
-        const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startFmt}/${endFmt}&details=${encodeURIComponent('Trabaho kay: ' + worker)}&location=${encodeURIComponent(address)}`;
+        loadSchedules(); // I-reload ang listahan
 
+        // Linisin ang input fields
+        document.getElementById("jobTitle").value = "";
+        document.getElementById("jobAddress").value = "";
+        document.getElementById("startDate").value = "";
+        document.getElementById("endDate").value = "";
+        
+        alert("Matagumpay na naidagdag at nai-save ang schedule!");
+    }
+
+    // 5. Delete Schedule
+    function deleteSchedule(index) {
+        if (confirm("Sigurado ka bang gusto mong tanggalin ang sched na ito?")) {
+            let savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
+            savedSchedules.splice(index, 1);
+            localStorage.setItem("jobSchedules", JSON.stringify(savedSchedules));
+            loadSchedules();
+        }
+    }
+
+    // 6. Render Job Card Helper
+    function renderJobCard(job, index) {
         const listContainer = document.getElementById("scheduleList");
+        
         if (listContainer.innerHTML.includes("Wala pang naka-save")) {
             listContainer.innerHTML = "";
         }
 
+        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`;
+        const startFmt = job.start.replaceAll('-', '');
+        const endFmt = job.end.replaceAll('-', '');
+        const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(job.title)}&dates=${startFmt}/${endFmt}&details=${encodeURIComponent('Trabaho kay: ' + job.worker)}&location=${encodeURIComponent(job.address)}`;
+
         const card = document.createElement("div");
         card.className = "job-card";
         card.innerHTML = `
-            <h4 style="margin: 0 0 8px 0; color: #333;">${title}</h4>
-            <p style="margin: 4px 0;"><strong>Worker:</strong> 👤 ${worker}</p>
-            <p style="margin: 4px 0;"><strong>Address:</strong> 📍 ${address}</p>
-            <p style="margin: 4px 0;"><strong>Petsa:</strong> 📅 ${start} hanggang ${end}</p>
+            <h4 style="margin: 0 0 8px 0; color: #333;">${job.title}</h4>
+            <p style="margin: 4px 0;"><strong>Worker:</strong> 👤 ${job.worker}</p>
+            <p style="margin: 4px 0;"><strong>Address:</strong> 📍 ${job.address}</p>
+            <p style="margin: 4px 0;"><strong>Petsa:</strong> 📅 ${job.start} hanggang ${job.end}</p>
             <div class="job-actions">
-                <a href="${mapUrl}" target="_blank" class="link-btn map-btn">🗺️ Buksan sa Google Maps</a>
-                <a href="${calUrl}" target="_blank" class="link-btn cal-btn">📅 Add to Google Calendar</a>
+                <a href="${mapUrl}" target="_blank" class="link-btn map-btn">🗺️ Google Maps</a>
+                <a href="${calUrl}" target="_blank" class="link-btn cal-btn">📅 Google Calendar</a>
+                <button class="link-btn btn-danger" onclick="deleteSchedule(${index})">🗑️ Tanggalin</button>
             </div>
         `;
 
-        listContainer.prepend(card);
-
-        document.getElementById("jobTitle").value = "";
-        document.getElementById("jobAddress").value = "";
-        alert("Matagumpay na naidagdag ang schedule!");
+        listContainer.appendChild(card);
     }
 </script>
 
