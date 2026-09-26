@@ -16,12 +16,18 @@
         .btn { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
         .btn:hover { background: #0056b3; }
         .btn-green { background: #28a745; width: auto; }
-        .btn-danger { background: #dc3545; padding: 6px 12px; font-size: 13px; }
+        
+        /* Mga Kulay para sa Buttons */
+        .link-btn { text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; color: white; display: inline-block; border: none; cursor: pointer; font-weight: bold; }
+        .map-btn { background: #ea4335; }       /* Google Maps - Red/Orange */
+        .cal-btn { background: #4285f4; }       /* Google Calendar - Blue */
+        .edit-btn { background: #007bff; }      /* Edit - Blue */
+        .delete-btn { background: #dc3545; }    /* Delete - Red */
+        .finished-btn { background: #28a745; }  /* Finished - Green */
+
         .job-card { background: #f9f9f9; border-left: 5px solid #007bff; padding: 15px; margin-top: 15px; border-radius: 4px; }
-        .job-actions { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-        .link-btn { text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; color: white; display: inline-block; }
-        .map-btn { background: #ea4335; }
-        .cal-btn { background: #4285f4; }
+        .job-card.is-finished { border-left-color: #28a745; background: #e8f5e9; opacity: 0.85; }
+        .job-actions { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         
         #suggestions {
             position: absolute;
@@ -51,8 +57,11 @@
 <body onload="loadSchedules()">
 
 <div class="container">
-    <h2>📅 Job & Schedule Tracker</h2>
+    <h2 id="formTitle">📅 Magdagdag ng Schedule</h2>
     
+    <!-- Hidden input para sa Edit Mode -->
+    <input type="hidden" id="editIndex" value="-1">
+
     <div class="form-group">
         <label>Pangalan / Uri ng Trabaho:</label>
         <input type="text" id="jobTitle" placeholder="Hal. Installation ng GIB & Plastering">
@@ -86,7 +95,7 @@
         </div>
     </div>
 
-    <button class="btn" onclick="saveSchedule()">I-save ang Schedule</button>
+    <button class="btn" id="saveBtn" onclick="saveSchedule()">I-save ang Schedule</button>
 
     <hr style="margin: 25px 0; border: 0; border-top: 1px solid #ddd;">
 
@@ -97,7 +106,6 @@
 </div>
 
 <script>
-    // 1. Live Address Search (Autocomplete)
     let searchTimeout;
     function searchAddress(query) {
         clearTimeout(searchTimeout);
@@ -136,7 +144,6 @@
         }
     });
 
-    // 2. Add Worker
     function addNewWorker() {
         const pangalan = prompt("Ilagay ang pangalan ng bagong worker:");
         if (pangalan && pangalan.trim() !== "") {
@@ -150,7 +157,6 @@
         }
     }
 
-    // 3. Load Schedules from LocalStorage when page opens
     function loadSchedules() {
         const savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
         const listContainer = document.getElementById("scheduleList");
@@ -166,37 +172,77 @@
         });
     }
 
-    // 4. Save Schedule
     function saveSchedule() {
         const title = document.getElementById("jobTitle").value;
         const address = document.getElementById("jobAddress").value;
         const worker = document.getElementById("workerDropdown").value;
         const start = document.getElementById("startDate").value;
         const end = document.getElementById("endDate").value;
+        const editIndex = document.getElementById("editIndex").value;
 
         if (!title || !address || !start || !end) {
             alert("Pakipunan po ang lahat ng kailangang detalye!");
             return;
         }
 
-        const newJob = { title, address, worker, start, end };
-        
         let savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
-        savedSchedules.unshift(newJob); // Ilagay sa unahan
+
+        if (editIndex === "-1") {
+            // Bagong add
+            const newJob = { title, address, worker, start, end, finished: false };
+            savedSchedules.unshift(newJob);
+            alert("Matagumpay na naidagdag ang schedule!");
+        } else {
+            // Update / Edit existing
+            savedSchedules[editIndex].title = title;
+            savedSchedules[editIndex].address = address;
+            savedSchedules[editIndex].worker = worker;
+            savedSchedules[editIndex].start = start;
+            savedSchedules[editIndex].end = end;
+            
+            // I-reset ang edit mode
+            document.getElementById("editIndex").value = "-1";
+            document.getElementById("formTitle").textContent = "📅 Magdagdag ng Schedule";
+            document.getElementById("saveBtn").textContent = "I-save ang Schedule";
+            alert("Matagumpay na na-update ang schedule!");
+        }
+
         localStorage.setItem("jobSchedules", JSON.stringify(savedSchedules));
+        loadSchedules();
+        clearForm();
+    }
 
-        loadSchedules(); // I-reload ang listahan
-
-        // Linisin ang input fields
+    function clearForm() {
         document.getElementById("jobTitle").value = "";
         document.getElementById("jobAddress").value = "";
         document.getElementById("startDate").value = "";
         document.getElementById("endDate").value = "";
-        
-        alert("Matagumpay na naidagdag at nai-save ang schedule!");
     }
 
-    // 5. Delete Schedule
+    function editSchedule(index) {
+        let savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
+        const job = savedSchedules[index];
+
+        document.getElementById("jobTitle").value = job.title;
+        document.getElementById("jobAddress").value = job.address;
+        document.getElementById("workerDropdown").value = job.worker;
+        document.getElementById("startDate").value = job.start;
+        document.getElementById("endDate").value = job.end;
+        
+        document.getElementById("editIndex").value = index;
+        document.getElementById("formTitle").textContent = "✏️ I-edit ang Schedule";
+        document.getElementById("saveBtn").textContent = "I-update ang Schedule";
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function toggleFinished(index) {
+        let savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
+        savedSchedules[index].finished = !savedSchedules[index].finished;
+        localStorage.setItem("jobSchedules", JSON.stringify(savedSchedules));
+        loadSchedules();
+    }
+
     function deleteSchedule(index) {
         if (confirm("Sigurado ka bang gusto mong tanggalin ang sched na ito?")) {
             let savedSchedules = JSON.parse(localStorage.getItem("jobSchedules")) || [];
@@ -206,30 +252,27 @@
         }
     }
 
-    // 6. Render Job Card Helper
     function renderJobCard(job, index) {
         const listContainer = document.getElementById("scheduleList");
         
-        if (listContainer.innerHTML.includes("Wala pang naka-save")) {
-            listContainer.innerHTML = "";
-        }
-
         const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`;
         const startFmt = job.start.replaceAll('-', '');
         const endFmt = job.end.replaceAll('-', '');
         const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(job.title)}&dates=${startFmt}/${endFmt}&details=${encodeURIComponent('Trabaho kay: ' + job.worker)}&location=${encodeURIComponent(job.address)}`;
 
         const card = document.createElement("div");
-        card.className = "job-card";
+        card.className = `job-card ${job.finished ? 'is-finished' : ''}`;
         card.innerHTML = `
-            <h4 style="margin: 0 0 8px 0; color: #333;">${job.title}</h4>
+            <h4 style="margin: 0 0 8px 0; color: #333;">${job.title} ${job.finished ? '✅ (Finished)' : ''}</h4>
             <p style="margin: 4px 0;"><strong>Worker:</strong> 👤 ${job.worker}</p>
-            <p style="margin: 4px 0;"><strong>Address:</strong> 📍 ${job.address}</p>
+            <p style="margin: 4px 0;"><strong>Address:</strong> 📍 <a href="${mapUrl}" target="_blank" style="color: #1a73e8; text-decoration: underline;">${job.address}</a></p>
             <p style="margin: 4px 0;"><strong>Petsa:</strong> 📅 ${job.start} hanggang ${job.end}</p>
             <div class="job-actions">
-                <a href="${mapUrl}" target="_blank" class="link-btn map-btn">🗺️ Google Maps</a>
-                <a href="${calUrl}" target="_blank" class="link-btn cal-btn">📅 Google Calendar</a>
-                <button class="link-btn btn-danger" onclick="deleteSchedule(${index})">🗑️ Tanggalin</button>
+                <a href="${mapUrl}" target="_blank" class="link-btn map-btn">🗺️ Maps</a>
+                <a href="${calUrl}" target="_blank" class="link-btn cal-btn">📅 Calendar</a>
+                <button class="link-btn edit-btn" onclick="editSchedule(${index})">✏️ Edit</button>
+                <button class="link-btn finished-btn" onclick="toggleFinished(${index})">${job.finished ? '↩️ Ulitin' : '✔️ Finished'}</button>
+                <button class="link-btn delete-btn" onclick="deleteSchedule(${index})">🗑️ Delete</button>
             </div>
         `;
 
