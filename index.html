@@ -17,7 +17,6 @@
         .btn:hover { background: #0056b3; }
         .btn-green { background: #28a745; width: auto; }
         
-        /* Kahon para sa mga Worker Checkboxes */
         .workers-box {
             border: 1px solid #ccc;
             border-radius: 4px;
@@ -37,13 +36,12 @@
             transform: scale(1.1);
         }
 
-        /* Mga Kulay para sa Buttons */
         .link-btn { text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; color: white; display: inline-block; border: none; cursor: pointer; font-weight: bold; }
-        .map-btn { background: #ea4335; }       /* Google Maps */
-        .cal-btn { background: #4285f4; }       /* Google Calendar */
-        .edit-btn { background: #007bff; }      /* Edit - Blue */
-        .delete-btn { background: #dc3545; }    /* Delete - Red */
-        .finished-btn { background: #28a745; }  /* Finished - Green */
+        .map-btn { background: #ea4335; }       
+        .cal-btn { background: #4285f4; }       
+        .edit-btn { background: #007bff; }      
+        .delete-btn { background: #dc3545; }    
+        .finished-btn { background: #28a745; }  
 
         .job-card { background: #f9f9f9; border-left: 5px solid #007bff; padding: 15px; margin-top: 15px; border-radius: 4px; }
         .job-card.is-finished { border-left-color: #28a745; background: #e8f5e9; opacity: 0.85; }
@@ -92,12 +90,9 @@
         <div id="suggestions"></div>
     </div>
 
-    <!-- Multi-Worker Checkboxes -->
     <div class="form-group">
         <label>Pumili ng mga Worker (Pwede marami):</label>
-        <div id="workersContainer" class="workers-box">
-            <!-- Dito kusang papasok ang listahan ng mga tao -->
-        </div>
+        <div id="workersContainer" class="workers-box"></div>
         <button type="button" class="btn btn-green" style="margin-top: 8px;" onclick="addNewWorkerPrompt()">+ Magdagdag ng Bagong Worker sa Listahan</button>
     </div>
 
@@ -123,15 +118,13 @@
 </div>
 
 <script>
-    // Paunang listahan ng mga worker kung wala pang naka-save
-    let defaultWorkers = ["Frank Nesperos", "Larry Labrador", "Elmer Cabaña", "John Guzman", "Marino Ilustrado", "Jayson Thomas"];
+    let defaultWorkers = ["Frank Nesperos", "John Doe", "Worker 3", "Worker 4", "Worker 5", "Worker 6"];
 
     function initApp() {
         loadWorkerCheckboxes();
         loadSchedules();
     }
 
-    // Load worker checkboxes sa form
     function loadWorkerCheckboxes(selectedWorkers = []) {
         let workersList = JSON.parse(localStorage.getItem("systemWorkers")) || defaultWorkers;
         const container = document.getElementById("workersContainer");
@@ -150,7 +143,6 @@
         });
     }
 
-    // Magdagdag ng bagong worker sa buong listahan
     function addNewWorkerPrompt() {
         const pangalan = prompt("Ilagay ang pangalan ng bagong worker:");
         if (pangalan && pangalan.trim() !== "") {
@@ -161,7 +153,6 @@
                 workersList.push(newName);
                 localStorage.setItem("systemWorkers", JSON.stringify(workersList));
                 
-                // Kunin ang mga kasalukuyang nakatsek para hindi mawala
                 let currentSelected = getSelectedWorkersFromForm();
                 currentSelected.push(newName);
                 
@@ -263,8 +254,6 @@
             savedSchedules[editIndex].workers = workers;
             savedSchedules[editIndex].start = start;
             savedSchedules[editIndex].end = end;
-            
-            clearForm();
             alert("Matagumpay na na-update ang schedule!");
         }
 
@@ -293,8 +282,6 @@
         document.getElementById("jobTitle").value = job.title;
         document.getElementById("jobAddress").value = job.address;
         
-        // I-load ang mga worker at lagyan ng tsek kung sino ang naka-assign sa job na ito
-        // Kung sakaling may lumang data na iisang worker lang, i-handle natin nang maayos
         let assignedWorkers = job.workers || (job.worker ? [job.worker] : []);
         loadWorkerCheckboxes(assignedWorkers);
 
@@ -328,14 +315,23 @@
         const listContainer = document.getElementById("scheduleList");
         
         const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`;
-        const startFmt = job.start.replaceAll('-', '');
-        const endFmt = job.end.replaceAll('-', '');
         
-        // Kunin ang listahan ng mga worker para sa calendar details
+        // Pag-aayos sa petsa para siguradong YYYYMMDD ang format ng Google Calendar
+        const startClean = job.start.replace(/-/g, '');
+        // Ang end date sa Google Calendar ay kailangang masundan ng isang araw para sa sakop ng multi-day event, kaya ginawa nating ligtas ang format:
+        let endClean = job.end.replace(/-/g, '');
+        if (startClean === endClean) {
+            // Kung pareho ang start at end, idagdag natin ang sunod na araw para tanggapin ng Google Calendar
+            let d = new Date(job.end);
+            d.setDate(d.getDate() + 1);
+            endClean = d.toISOString().slice(0,10).replace(/-/g, '');
+        }
+
         let workersArray = job.workers || (job.worker ? [job.worker] : []);
         const workersStr = workersArray.join(", ");
         
-        const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(job.title)}&dates=${startFmt}/${endFmt}&details=${encodeURIComponent('Mga Worker: ' + workersStr)}&location=${encodeURIComponent(job.address)}`;
+        // Pinatibay na Google Calendar Template Link
+        const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(job.title)}&dates=${startClean}/${endClean}&details=${encodeURIComponent('Mga Worker: ' + workersStr)}&location=${encodeURIComponent(job.address)}`;
 
         const card = document.createElement("div");
         card.className = `job-card ${job.finished ? 'is-finished' : ''}`;
