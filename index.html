@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job & Schedule Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { color: #0056b3; margin-top: 0; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="date"], select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .row { display: flex; gap: 10px; }
+        .row .form-group { flex: 1; }
+        .btn { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
+        .btn:hover { background: #0056b3; }
+        .btn-green { background: #28a745; width: auto; }
+        .job-card { background: #f9f9f9; border-left: 5px solid #007bff; padding: 15px; margin-top: 15px; border-radius: 4px; }
+        .job-actions { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .link-btn { text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; color: white; display: inline-block; }
+        .map-btn { background: #ea4335; }
+        .cal-btn { background: #4285f4; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📅 Job & Schedule Tracker</h2>
+    
+    <!-- Form para sa Schedule -->
+    <div class="form-group">
+        <label>Pangalan / Uri ng Trabaho:</label>
+        <input type="text" id="jobTitle" placeholder="Hal. Installation ng GIB & Plastering">
+    </div>
+
+    <div class="form-group">
+        <label>Address ng Lokasyon:</label>
+        <input type="text" id="jobAddress" placeholder="Hal. 123 Franklin St, Pirongia">
+    </div>
+
+    <div class="form-group">
+        <label>Naka-assign na Worker:</label>
+        <div style="display: flex; gap: 10px;">
+            <select id="workerDropdown" style="flex: 1;">
+                <option value="Frank Nesperos">Frank Nesperos</option>
+                <option value="John Doe">John Doe</option>
+            </select>
+            <button type="button" class="btn btn-green" onclick="addNewWorker()">+ Add Worker</button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="form-group">
+            <label>Petsa ng Simula:</label>
+            <input type="date" id="startDate">
+        </div>
+        <div class="form-group">
+            <label>Petsa ng Tapos:</label>
+            <input type="date" id="endDate">
+        </div>
+    </div>
+
+    <button class="btn" onclick="saveSchedule()">I-save ang Schedule</button>
+
+    <hr style="margin: 25px 0; border: 0; border-top: 1px solid #ddd;">
+
+    <h3>📋 Listahan ng mga Trabaho</h3>
+    <div id="scheduleList">
+        <p style="color: #777; font-style: italic;">Wala pang naka-save na schedule.</p>
+    </div>
+</div>
+
+<script>
+    // 1. Function para mag-add ng bagong worker sa dropdown
+    function addNewWorker() {
+        const pangalan = prompt("Ilagay ang pangalan ng bagong worker:");
+        if (pangalan && pangalan.trim() !== "") {
+            const dropdown = document.getElementById("workerDropdown");
+            const newOpt = document.createElement("option");
+            newOpt.value = pangalan.trim();
+            newOpt.textContent = pangalan.trim();
+            dropdown.appendChild(newOpt);
+            dropdown.value = pangalan.trim();
+            alert(`Naidagdag na si ${pangalan} sa listahan!`);
+        }
+    }
+
+    // 2. Function para i-save at ipakita ang schedule
+    function saveSchedule() {
+        const title = document.getElementById("jobTitle").value;
+        const address = document.getElementById("jobAddress").value;
+        const worker = document.getElementById("workerDropdown").value;
+        const start = document.getElementById("startDate").value;
+        const end = document.getElementById("endDate").value;
+
+        if (!title || !address || !start || !end) {
+            alert("Pakipunan po ang lahat ng kailangang detalye!");
+            return;
+        }
+
+        // Gumawa ng Google Maps URL
+        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+
+        // Gumawa ng Google Calendar URL (Format: YYYYMMDD)
+        const startFmt = start.replaceAll('-', '');
+        const endFmt = end.replaceAll('-', '');
+        const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startFmt}/${endFmt}&details=${encodeURIComponent('Trabaho kay: ' + worker)}&location=${encodeURIComponent(address)}`;
+
+        // I-display sa listahan
+        const listContainer = document.getElementById("scheduleList");
+        
+        // Alisin ang placeholder kung unang beses mag-add
+        if (listContainer.innerHTML.includes("Wala pang naka-save")) {
+            listContainer.innerHTML = "";
+        }
+
+        const card = document.createElement("div");
+        card.className = "job-card";
+        card.innerHTML = `
+            <h4 style="margin: 0 0 8px 0; color: #333;">${title}</h4>
+            <p style="margin: 4px 0;"><strong>Worker:</strong> 👤 ${worker}</p>
+            <p style="margin: 4px 0;"><strong>Address:</strong> 📍 ${address}</p>
+            <p style="margin: 4px 0;"><strong>Petsa:</strong> 📅 ${start} hanggang ${end}</p>
+            <div class="job-actions">
+                <a href="${mapUrl}" target="_blank" class="link-btn map-btn">🗺️ Buksan sa Google Maps</a>
+                <a href="${calUrl}" target="_blank" class="link-btn cal-btn">📅 Add to Google Calendar</a>
+            </div>
+        `;
+
+        listContainer.prepend(card);
+
+        // Linisin ang input fields
+        document.getElementById("jobTitle").value = "";
+        document.getElementById("jobAddress").value = "";
+        alert("Matagumpay na naidagdag ang schedule!");
+    }
+</script>
+
+</body>
+</html>
